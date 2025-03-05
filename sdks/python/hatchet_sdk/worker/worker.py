@@ -105,7 +105,10 @@ class Worker:
             logger.error(e)
             sys.exit(1)
 
-    def register_workflow(self, workflow: TBaseWorkflow) -> None:
+    def register_workflow(self, workflow: TBaseWorkflow | Task[Any, Any]) -> None:
+        if isinstance(workflow, Task):
+            return self._register_task(workflow)
+
         namespace = self.client.config.namespace
 
         try:
@@ -127,7 +130,7 @@ class Worker:
                 step_output=return_type if is_basemodel_subclass(return_type) else None,
             )
 
-    def register_function(self, function: Task[Any, Any]) -> None:
+    def _register_task(self, function: Task[Any, Any]) -> None:
         from hatchet_sdk.workflow import BaseWorkflow
 
         declaration = function.hatchet.declare_workflow(
