@@ -3,15 +3,8 @@ from typing import Any, Awaitable, Callable, Generic, TypeGuard, Union
 
 from hatchet_sdk.context.context import Context
 from hatchet_sdk.contracts.workflows_pb2 import CreateStepRateLimit, DesiredWorkerLabels
-from hatchet_sdk.core.types import (
-    ConcurrencyLimitStrategy,
-    Context,
-    CreateStepRateLimit,
-    DesiredWorkerLabels,
-    R,
-    StepType,
-)
-from hatchet_sdk.core.workflow import BaseWorkflow
+from hatchet_sdk.runnables.types import ConcurrencyLimitStrategy, R, StepType
+from hatchet_sdk.runnables.workflow import BaseWorkflow
 
 AsyncFunc = Callable[[Any, Context], Awaitable[R]]
 SyncFunc = Callable[[Any, Context], R]

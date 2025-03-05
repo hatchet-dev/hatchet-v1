@@ -25,7 +25,9 @@ from hatchet_sdk.contracts.workflows_pb2 import (
     WorkflowKind,
     WorkflowVersion,
 )
-from hatchet_sdk.core.types import (
+from hatchet_sdk.logger import logger
+from hatchet_sdk.runnables.task import Task
+from hatchet_sdk.runnables.types import (
     AsyncFunc,
     R,
     StepFunc,
@@ -34,7 +36,6 @@ from hatchet_sdk.core.types import (
     TWorkflowInput,
     WorkflowConfig,
 )
-from hatchet_sdk.logger import logger
 from hatchet_sdk.utils.proto_enums import convert_python_enum_to_proto, maybe_int_to_str
 from hatchet_sdk.workflow_run import WorkflowRunRef
 
@@ -186,30 +187,30 @@ class BaseWorkflow:
     def get_service_name(self, namespace: str) -> str:
         return f"{namespace}{self.config.name.lower()}"
 
-    def _get_steps_by_type(self, step_type: StepType) -> list[Step[Any]]:
+    def _get_steps_by_type(self, step_type: StepType) -> list[Task[Any]]:
         return [
             attr
             for _, attr in self.__class__.__dict__.items()
-            if isinstance(attr, Step) and attr.type == step_type
+            if isinstance(attr, Task) and attr.type == step_type
         ]
 
     @property
-    def on_failure_steps(self) -> list[Step[Any]]:
+    def on_failure_steps(self) -> list[Task[Any]]:
         return self._get_steps_by_type(StepType.ON_FAILURE)
 
     @property
-    def concurrency_actions(self) -> list[Step[Any]]:
+    def concurrency_actions(self) -> list[Task[Any]]:
         return self._get_steps_by_type(StepType.CONCURRENCY)
 
     @property
-    def default_steps(self) -> list[Step[Any]]:
+    def default_steps(self) -> list[Task[Any]]:
         return self._get_steps_by_type(StepType.DEFAULT)
 
     @property
-    def steps(self) -> list[Step[Any]]:
+    def steps(self) -> list[Task[Any]]:
         return self.default_steps + self.concurrency_actions + self.on_failure_steps
 
-    def create_action_name(self, namespace: str, step: Step[Any]) -> str:
+    def create_action_name(self, namespace: str, step: Task[Any]) -> str:
         return self.get_service_name(namespace) + ":" + step.name
 
     def get_name(self, namespace: str) -> str:
