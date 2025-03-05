@@ -1,12 +1,11 @@
 import asyncio
 
-from hatchet_sdk import new_client
+from hatchet_sdk import Hatchet
+
+hatchet = Hatchet()
 
 
 async def main() -> None:
-
-    hatchet = new_client()
-
     hatchet.admin.run_workflow(
         "Parent",
         {"x": "foo bar baz"},

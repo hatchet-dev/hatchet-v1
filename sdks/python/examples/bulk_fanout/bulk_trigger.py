@@ -1,12 +1,12 @@
 import asyncio
 
-from hatchet_sdk import new_client
+from hatchet_sdk import Hatchet
 from hatchet_sdk.clients.admin import TriggerWorkflowOptions, WorkflowRunDict
 
 
 async def main() -> None:
 
-    hatchet = new_client()
+    hatchet = Hatchet()
 
     workflow_runs = [
         WorkflowRunDict(

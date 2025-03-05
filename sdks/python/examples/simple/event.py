@@ -1,14 +1,13 @@
-from hatchet_sdk import new_client
+from hatchet_sdk import Hatchet
 from hatchet_sdk.clients.events import (
     BulkPushEventOptions,
     BulkPushEventWithMetadata,
     PushEventOptions,
 )
 
-client = new_client()
+hatchet = Hatchet()
 
-# client.event.push("user:create", {"test": "test"})
-client.event.push(
+hatchet.event.push(
     "user:create",
     {"test": "test"},
     options=PushEventOptions(additional_metadata={"hello": "moon"}),
@@ -33,7 +32,7 @@ events = [
 ]
 
 
-result = client.event.bulk_push(
+result = hatchet.event.bulk_push(
     events, options=BulkPushEventOptions(namespace="bulk-test")
 )
 

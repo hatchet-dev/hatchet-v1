@@ -1,12 +1,9 @@
 from typing import Any, cast
 
-from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from hatchet_sdk import BaseWorkflow, ChildTriggerWorkflowOptions, Context, Hatchet
 from hatchet_sdk.workflow import SpawnWorkflowInput
-
-load_dotenv()
 
 hatchet = Hatchet(debug=True)
 

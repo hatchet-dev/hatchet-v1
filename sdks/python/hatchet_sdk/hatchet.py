@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any, Callable, Type, TypeVar, cast, overload
 
-from hatchet_sdk.client import Client, new_client, new_client_raw
+from hatchet_sdk.client import Client
 from hatchet_sdk.clients.admin import AdminClient
 from hatchet_sdk.clients.dispatcher.dispatcher import DispatcherClient
 from hatchet_sdk.clients.events import EventClient
@@ -59,20 +59,6 @@ class Hatchet:
         rest (RestApi): Interface for REST API operations.
     """
 
-    _client: Client
-    cron: CronClient
-    scheduled: ScheduledClient
-
-    @classmethod
-    def from_environment(
-        cls, defaults: ClientConfig = ClientConfig(), **kwargs: Any
-    ) -> "Hatchet":
-        return cls(client=new_client(defaults), **kwargs)
-
-    @classmethod
-    def from_config(cls, config: ClientConfig, **kwargs: Any) -> "Hatchet":
-        return cls(client=new_client_raw(config), **kwargs)
-
     def __init__(
         self,
         debug: bool = False,
@@ -91,7 +77,7 @@ class Hatchet:
         if debug:
             logger.setLevel(logging.DEBUG)
 
-        self._client = client if client else new_client(config, debug)
+        self._client = client if client else Client(config=config, debug=debug)
         self.cron = CronClient(self._client)
         self.scheduled = ScheduledClient(self._client)
 
