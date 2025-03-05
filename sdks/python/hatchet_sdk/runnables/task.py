@@ -1,10 +1,12 @@
 import asyncio
-from typing import Any, Awaitable, Callable, Generic, TypeGuard, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Generic, TypeGuard, Union
 
 from hatchet_sdk.context.context import Context
 from hatchet_sdk.contracts.workflows_pb2 import CreateStepRateLimit, DesiredWorkerLabels
 from hatchet_sdk.runnables.types import ConcurrencyLimitStrategy, R, StepType
-from hatchet_sdk.runnables.workflow import BaseWorkflow
+
+if TYPE_CHECKING:
+    from hatchet_sdk.runnables.workflow import BaseWorkflow
 
 AsyncFunc = Callable[[Any, Context], Awaitable[R]]
 SyncFunc = Callable[[Any, Context], R]
