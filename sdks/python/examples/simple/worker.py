@@ -3,7 +3,7 @@ from hatchet_sdk import Context, Hatchet
 hatchet = Hatchet(debug=True)
 
 
-@hatchet.task()
+@hatchet.task(name="SimpleTask")
 async def step1(context: Context) -> dict[str, str]:
     print("executed step1")
     return {
