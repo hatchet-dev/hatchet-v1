@@ -136,8 +136,8 @@ class StandaloneTask(Generic[TWorkflowInput, R]):
         def func(_: Any, context: Context) -> R:
             return fn(context)
 
-        def async_func(_: Any, context: Context) -> R:
-            return fn(context)
+        async def async_func(_: Any, context: Context) -> R:
+            return await cast(Awaitable[R], fn(context))
 
         self.hatchet = hatchet
 
@@ -164,6 +164,8 @@ class StandaloneTask(Generic[TWorkflowInput, R]):
             desired_worker_labels=desired_worker_labels,
             backoff_factor=backoff_factor,
             backoff_max_seconds=backoff_max_seconds,
-        )(async_func if is_async else func)
+        )(
+            async_func if is_async else func  # type: ignore[arg-type]
+        )
 
         self.workflow_config = wf.config
