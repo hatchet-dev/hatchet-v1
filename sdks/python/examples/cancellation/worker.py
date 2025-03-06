@@ -8,9 +8,7 @@ wf = hatchet.declare_workflow(on_events=["user:create"])
 
 
 class CancelWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step(timeout="10s", retries=1)
+    @wf.task(timeout="10s", retries=1)
     async def step1(self, context: Context) -> None:
         i = 0
         while not context.exit_flag and i < 20:
@@ -24,7 +22,7 @@ class CancelWorkflow(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("cancellation-worker", max_runs=4)
-    worker.register_workflow(CancelWorkflow())
+    worker.register_workflow(CancelWorkflow(wf))
 
     worker.start()
 

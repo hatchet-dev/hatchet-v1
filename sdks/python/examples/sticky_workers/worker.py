@@ -14,17 +14,15 @@ sticky_workflow = hatchet.declare_workflow(
 
 
 class StickyWorkflow(BaseWorkflow):
-    config = sticky_workflow.config
-
-    @hatchet.step()
+    @sticky_workflow.task()
     def step1a(self, context: Context) -> dict[str, str | None]:
         return {"worker": context.worker.id()}
 
-    @hatchet.step()
+    @sticky_workflow.task()
     def step1b(self, context: Context) -> dict[str, str | None]:
         return {"worker": context.worker.id()}
 
-    @hatchet.step(parents=["step1a", "step1b"])
+    @sticky_workflow.task(parents=["step1a", "step1b"])
     async def step2(self, context: Context) -> dict[str, str | None]:
         ref = await context.aio_spawn_workflow(
             "StickyChildWorkflow", {}, options=ChildTriggerWorkflowOptions(sticky=True)
@@ -41,17 +39,15 @@ sticky_child_workflow = hatchet.declare_workflow(
 
 
 class StickyChildWorkflow(BaseWorkflow):
-    config = sticky_child_workflow.config
-
-    @hatchet.step()
+    @sticky_child_workflow.task()
     def child(self, context: Context) -> dict[str, str | None]:
         return {"worker": context.worker.id()}
 
 
 def main() -> None:
     worker = hatchet.worker("sticky-worker", max_runs=10)
-    worker.register_workflow(StickyWorkflow())
-    worker.register_workflow(StickyChildWorkflow())
+    worker.register_workflow(StickyWorkflow(sticky_workflow))
+    worker.register_workflow(StickyChildWorkflow(sticky_child_workflow))
     worker.start()
 
 

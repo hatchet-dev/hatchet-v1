@@ -12,9 +12,7 @@ wf = hatchet.declare_workflow(on_crons=["* * * * *"])
 
 
 class CronWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step()
+    @wf.task()
     def step1(self, context: Context) -> dict[str, str]:
 
         return {
@@ -27,7 +25,7 @@ class CronWorkflow(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("test-worker", max_runs=1)
-    worker.register_workflow(CronWorkflow())
+    worker.register_workflow(CronWorkflow(wf))
     worker.start()
 
 

@@ -18,9 +18,7 @@ print_printer_wf = hatchet.declare_workflow(input_validator=PrinterInput)
 
 
 class PrintSchedule(BaseWorkflow):
-    config = print_schedule_wf.config
-
-    @hatchet.step()
+    @print_schedule_wf.task()
     def schedule(self, context: Context) -> None:
         now = datetime.now()
         print(f"the time is \t {now.strftime('%H:%M:%S')}")
@@ -33,9 +31,7 @@ class PrintSchedule(BaseWorkflow):
 
 
 class PrintPrinter(BaseWorkflow):
-    config = print_printer_wf.config
-
-    @hatchet.step()
+    @print_printer_wf.task()
     def step1(self, context: Context) -> None:
         now = datetime.now()
         print(f"printed at \t {now.strftime('%H:%M:%S')}")
@@ -43,9 +39,11 @@ class PrintPrinter(BaseWorkflow):
 
 
 def main() -> None:
-    worker = hatchet.worker("delayed-worker", max_runs=4)
-    worker.register_workflow(PrintSchedule())
-    worker.register_workflow(PrintPrinter())
+    worker = hatchet.worker(
+        "delayed-worker",
+        max_runs=4,
+        workflows=[PrintSchedule(print_schedule_wf), PrintPrinter(print_printer_wf)],
+    )
 
     worker.start()
 

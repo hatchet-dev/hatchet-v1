@@ -1,14 +1,15 @@
 import asyncio
 from contextlib import suppress
 
-from hatchet_sdk import Context, Hatchet
-from hatchet_sdk.workflow import BaseWorkflow
+from hatchet_sdk import BaseWorkflow, Context, Hatchet
 
 hatchet = Hatchet(debug=True)
 
+wf = hatchet.declare_workflow(name="Foo")
+
 
 class MyWorkflow(BaseWorkflow):
-    @hatchet.step()
+    @wf.task()
     async def step(self, context: Context) -> dict[str, str]:
         print("started")
         await asyncio.sleep(10)
@@ -19,7 +20,7 @@ class MyWorkflow(BaseWorkflow):
 async def async_main() -> None:
     worker = None
     try:
-        workflow = MyWorkflow()
+        workflow = MyWorkflow(wf)
         worker = hatchet.worker("test-worker", max_runs=1)
         worker.register_workflow(workflow)
         worker.start()

@@ -2,8 +2,13 @@ from typing import Any, cast
 
 from pydantic import BaseModel
 
-from hatchet_sdk import BaseWorkflow, ChildTriggerWorkflowOptions, Context, Hatchet
-from hatchet_sdk.workflow import SpawnWorkflowInput
+from hatchet_sdk import (
+    BaseWorkflow,
+    ChildTriggerWorkflowOptions,
+    Context,
+    Hatchet,
+    SpawnWorkflowInput,
+)
 
 hatchet = Hatchet(debug=True)
 
@@ -23,9 +28,7 @@ child = hatchet.declare_workflow(on_events=["child:create"], input_validator=Chi
 
 
 class SyncFanoutParent(BaseWorkflow):
-    config = parent.config
-
-    @hatchet.step(timeout="5m")
+    @parent.task(timeout="5m")
     def spawn(self, context: Context) -> dict[str, Any]:
         print("spawning child")
 
@@ -53,18 +56,21 @@ class SyncFanoutParent(BaseWorkflow):
 
 
 class SyncFanoutChild(BaseWorkflow):
-    config = child.config
-
-    @hatchet.step()
+    @child.task()
     def process(self, context: Context) -> dict[str, str]:
         a = cast(str, context.workflow_input["a"])
         return {"status": "success " + a}
 
 
 def main() -> None:
-    worker = hatchet.worker("sync-fanout-worker", max_runs=40)
-    worker.register_workflow(SyncFanoutParent())
-    worker.register_workflow(SyncFanoutChild())
+    worker = hatchet.worker(
+        "sync-fanout-worker",
+        max_runs=40,
+        workflows=[
+            SyncFanoutParent(parent),
+            SyncFanoutChild(child),
+        ],
+    )
     worker.start()
 
 

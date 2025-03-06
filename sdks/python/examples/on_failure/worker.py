@@ -12,15 +12,13 @@ on_failure_wf = hatchet.declare_workflow(on_events=["user:create"])
 
 
 class OnFailureWorkflow(BaseWorkflow):
-    config = on_failure_wf.config
-
-    @hatchet.step(timeout="1s")
+    @on_failure_wf.task(timeout="1s")
     def step1(self, context: Context) -> None:
         # 👀 this step will always raise an exception
         raise Exception("step1 failed")
 
     # 👀 After the workflow fails, this special step will run
-    @hatchet.on_failure_step()
+    @on_failure_wf.on_failure_task()
     def on_failure(self, context: Context) -> dict[str, str]:
         # 👀 we can do things like perform cleanup logic
         # or notify a user here
@@ -45,12 +43,12 @@ class OnFailureWorkflowWithDetails(BaseWorkflow):
     config = on_failure_wf_with_details.config
 
     # ... defined as above
-    @hatchet.step(timeout="1s")
+    @on_failure_wf_with_details.task(timeout="1s")
     def step1(self, context: Context) -> None:
         raise Exception("step1 failed")
 
     # 👀 After the workflow fails, this special step will run
-    @hatchet.on_failure_step()
+    @on_failure_wf_with_details.on_failure_task()
     def on_failure(self, context: Context) -> dict[str, str]:
         failures = context.fetch_run_failures()
 
@@ -66,9 +64,14 @@ class OnFailureWorkflowWithDetails(BaseWorkflow):
 
 
 def main() -> None:
-    worker = hatchet.worker("on-failure-worker", max_runs=4)
-    worker.register_workflow(OnFailureWorkflow())
-    worker.register_workflow(OnFailureWorkflowWithDetails())
+    worker = hatchet.worker(
+        "on-failure-worker",
+        max_runs=4,
+        workflows=[
+            OnFailureWorkflow(on_failure_wf),
+            OnFailureWorkflowWithDetails(on_failure_wf_with_details),
+        ],
+    )
 
     worker.start()
 

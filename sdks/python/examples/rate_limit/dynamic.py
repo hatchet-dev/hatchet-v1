@@ -7,9 +7,7 @@ wf = hatchet.declare_workflow(on_events=["rate_limit:create"])
 
 
 class RateLimitWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step(
+    @wf.task(
         rate_limits=[
             RateLimit(
                 dynamic_key='"LIMIT:"+input.group',
@@ -24,6 +22,6 @@ class RateLimitWorkflow(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("rate-limit-worker", max_runs=10)
-    worker.register_workflow(RateLimitWorkflow())
+    worker.register_workflow(RateLimitWorkflow(wf))
 
     worker.start()

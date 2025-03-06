@@ -25,9 +25,7 @@ child_wf = hatchet.declare_workflow(
 
 
 class Parent(BaseWorkflow):
-    config = parent_wf.config
-
-    @hatchet.step(timeout="5m")
+    @parent_wf.task(timeout="5m")
     async def spawn(self, context: Context) -> dict[str, Any]:
         print("spawning child")
 
@@ -56,16 +54,14 @@ class Parent(BaseWorkflow):
 
 
 class Child(BaseWorkflow):
-    config = child_wf.config
-
-    @hatchet.step()
+    @child_wf.task()
     def process(self, context: Context) -> dict[str, str]:
         a = child_wf.get_workflow_input(context).a
         print(f"child process {a}")
         context.put_stream("child 1...")
         return {"status": "success " + a}
 
-    @hatchet.step()
+    @child_wf.task()
     def process2(self, context: Context) -> dict[str, str]:
         print("child process2")
         context.put_stream("child 2...")
@@ -73,9 +69,9 @@ class Child(BaseWorkflow):
 
 
 def main() -> None:
-    worker = hatchet.worker("fanout-worker", max_runs=40)
-    worker.register_workflow(Parent())
-    worker.register_workflow(Child())
+    worker = hatchet.worker(
+        "fanout-worker", max_runs=40, workflows=[Parent(parent_wf), Child(child_wf)]
+    )
     worker.start()
 
 

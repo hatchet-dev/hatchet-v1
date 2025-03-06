@@ -15,9 +15,7 @@ wf = hatchet.declare_workflow(on_events=["user:create"])
 
 
 class Blocked(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step(timeout="11s", retries=3)
+    @wf.task(timeout="11s", retries=3)
     async def step1(self, context: Context) -> dict[str, str | int | float]:
         print("Executing step1")
 
@@ -43,7 +41,7 @@ class Blocked(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("blocked-worker", max_runs=3)
-    worker.register_workflow(Blocked())
+    worker.register_workflow(Blocked(wf))
     worker.start()
 
 

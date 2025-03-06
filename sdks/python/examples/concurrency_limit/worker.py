@@ -31,10 +31,7 @@ wf = hatchet.declare_workflow(
 
 
 class ConcurrencyDemoWorkflow(BaseWorkflow):
-
-    config = wf.config
-
-    @hatchet.step()
+    @wf.task()
     def step1(self, context: Context) -> dict[str, Any]:
         input = wf.get_workflow_input(context)
         time.sleep(3)
@@ -44,7 +41,7 @@ class ConcurrencyDemoWorkflow(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("concurrency-demo-worker", max_runs=10)
-    worker.register_workflow(ConcurrencyDemoWorkflow())
+    worker.register_workflow(ConcurrencyDemoWorkflow(wf))
 
     worker.start()
 

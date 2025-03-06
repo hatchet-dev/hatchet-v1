@@ -23,9 +23,7 @@ child_workflow = hatchet.declare_workflow(input_validator=ChildInput)
 
 
 class Parent(BaseWorkflow):
-    config = parent_workflow.config
-
-    @hatchet.step(timeout="5m")
+    @parent_workflow.task(timeout="5m")
     async def spawn(self, context: Context) -> dict[str, str]:
         ## Use `typing.cast` to cast your `workflow_input`
         ## to the type of your `input_validator`
@@ -43,23 +41,21 @@ class StepResponse(BaseModel):
 
 
 class Child(BaseWorkflow):
-    config = child_workflow.config
-
-    @hatchet.step()
+    @child_workflow.task()
     def process(self, context: Context) -> StepResponse:
         ## This is an instance `ChildInput`
         child_workflow.get_workflow_input(context)
 
         return StepResponse(status="success")
 
-    @hatchet.step(parents=["process"])
+    @child_workflow.task(parents=["process"])
     def process2(self, context: Context) -> StepResponse:
         ## This is an instance of `StepResponse`
         cast(StepResponse, context.step_output("process"))
 
         return {"status": "step 2 - success"}  # type: ignore[return-value]
 
-    @hatchet.step(parents=["process2"])
+    @child_workflow.task(parents=["process2"])
     def process3(self, context: Context) -> StepResponse:
         ## This is an instance of `StepResponse`, even though the
         ## response of `process2` was a dictionary. Note that
@@ -75,8 +71,7 @@ class Child(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("pydantic-worker")
-    worker.register_workflow(Parent())
-    worker.register_workflow(Child())
+    worker.register_workflows([Parent(parent_workflow), Child(child_workflow)])
     worker.start()
 
 

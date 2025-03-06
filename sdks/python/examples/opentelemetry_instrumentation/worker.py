@@ -13,9 +13,7 @@ wf = hatchet.declare_workflow(
 
 
 class OTelWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step()
+    @wf.task()
     def your_spans_are_children_of_hatchet_span(
         self, context: Context
     ) -> dict[str, str]:
@@ -25,26 +23,26 @@ class OTelWorkflow(BaseWorkflow):
                 "foo": "bar",
             }
 
-    @hatchet.step()
+    @wf.task()
     def your_spans_are_still_children_of_hatchet_span(self, context: Context) -> None:
         with trace_provider.get_tracer(__name__).start_as_current_span("step2"):
             raise Exception("Manually instrumented step failed failed")
 
-    @hatchet.step()
+    @wf.task()
     def this_step_is_still_instrumented(self, context: Context) -> dict[str, str]:
         print("executed still-instrumented step")
         return {
             "still": "instrumented",
         }
 
-    @hatchet.step()
+    @wf.task()
     def this_step_is_also_still_instrumented(self, context: Context) -> None:
         raise Exception("Still-instrumented step failed")
 
 
 def main() -> None:
     worker = hatchet.worker("otel-example-worker", max_runs=1)
-    worker.register_workflow(OTelWorkflow())
+    worker.register_workflow(OTelWorkflow(wf))
     worker.start()
 
 

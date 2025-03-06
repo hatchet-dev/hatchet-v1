@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Callable, Type, TypeVar, cast, overload
+from typing import Any, Callable, Sequence, Type, TypeVar, cast, overload
 
 from hatchet_sdk.client import Client
 from hatchet_sdk.clients.admin import AdminClient
@@ -10,37 +10,23 @@ from hatchet_sdk.clients.rest_client import RestApi
 from hatchet_sdk.clients.run_event_listener import RunEventListenerClient
 from hatchet_sdk.config import ClientConfig
 from hatchet_sdk.context.context import Context
-from hatchet_sdk.contracts.workflows_pb2 import DesiredWorkerLabels
 from hatchet_sdk.features.cron import CronClient
 from hatchet_sdk.features.scheduled import ScheduledClient
 from hatchet_sdk.labels import DesiredWorkerLabel
 from hatchet_sdk.logger import logger
 from hatchet_sdk.rate_limit import RateLimit
-from hatchet_sdk.worker.worker import Worker
-from hatchet_sdk.workflow import (
+from hatchet_sdk.runnables.task import StandaloneTask
+from hatchet_sdk.runnables.types import (
     ConcurrencyExpression,
     EmptyModel,
-    Step,
-    StepType,
     StickyStrategy,
-    Task,
     TWorkflowInput,
     WorkflowConfig,
-    WorkflowDeclaration,
 )
+from hatchet_sdk.runnables.workflow import WorkflowDeclaration
+from hatchet_sdk.worker.worker import TBaseWorkflow, Worker
 
 R = TypeVar("R")
-
-
-def transform_desired_worker_label(d: DesiredWorkerLabel) -> DesiredWorkerLabels:
-    value = d.value
-    return DesiredWorkerLabels(
-        strValue=value if not isinstance(value, int) else None,
-        intValue=value if isinstance(value, int) else None,
-        required=d.required,
-        weight=d.weight,
-        comparator=d.comparator,  # type: ignore[arg-type]
-    )
 
 
 class Hatchet:
@@ -109,66 +95,6 @@ class Hatchet:
     def tenant_id(self) -> str:
         return self._client.config.tenant_id
 
-    def step(
-        self,
-        name: str = "",
-        timeout: str = "60m",
-        parents: list[str] = [],
-        retries: int = 0,
-        rate_limits: list[RateLimit] = [],
-        desired_worker_labels: dict[str, DesiredWorkerLabel] = {},
-        backoff_factor: float | None = None,
-        backoff_max_seconds: int | None = None,
-    ) -> Callable[[Callable[[Any, Context], R]], Step[R]]:
-        def inner(func: Callable[[Any, Context], R]) -> Step[R]:
-            return Step(
-                fn=func,
-                type=StepType.DEFAULT,
-                name=name.lower() or str(func.__name__).lower(),
-                timeout=timeout,
-                parents=parents,
-                retries=retries,
-                rate_limits=[r for rate_limit in rate_limits if (r := rate_limit._req)],
-                desired_worker_labels={
-                    key: transform_desired_worker_label(d)
-                    for key, d in desired_worker_labels.items()
-                },
-                backoff_factor=backoff_factor,
-                backoff_max_seconds=backoff_max_seconds,
-            )
-
-        return inner
-
-    def on_failure_step(
-        self,
-        name: str = "",
-        timeout: str = "60m",
-        parents: list[str] = [],
-        retries: int = 0,
-        rate_limits: list[RateLimit] = [],
-        desired_worker_labels: dict[str, DesiredWorkerLabel] = {},
-        backoff_factor: float | None = None,
-        backoff_max_seconds: int | None = None,
-    ) -> Callable[[Callable[[Any, Context], R]], Step[R]]:
-        def inner(func: Callable[[Any, Context], R]) -> Step[R]:
-            return Step(
-                fn=func,
-                type=StepType.ON_FAILURE,
-                name=name.lower() or str(func.__name__).lower(),
-                timeout=timeout,
-                parents=parents,
-                retries=retries,
-                rate_limits=[r for rate_limit in rate_limits if (r := rate_limit._req)],
-                desired_worker_labels={
-                    key: transform_desired_worker_label(d)
-                    for key, d in desired_worker_labels.items()
-                },
-                backoff_factor=backoff_factor,
-                backoff_max_seconds=backoff_max_seconds,
-            )
-
-        return inner
-
     def task(
         self,
         name: str = "",
@@ -182,14 +108,13 @@ class Hatchet:
         rate_limits: list[RateLimit] = [],
         desired_worker_labels: dict[str, DesiredWorkerLabel] = {},
         concurrency: ConcurrencyExpression | None = None,
-        on_failure: Task[Any, Any] | None = None,
         default_priority: int = 1,
         input_validator: Type[TWorkflowInput] | None = None,
         backoff_factor: float | None = None,
         backoff_max_seconds: int | None = None,
-    ) -> Callable[[Callable[[Context], R]], Task[R, TWorkflowInput]]:
-        def inner(func: Callable[[Context], R]) -> Task[R, TWorkflowInput]:
-            return Task[R, TWorkflowInput](
+    ) -> Callable[[Callable[[Context], R]], StandaloneTask[TWorkflowInput, R]]:
+        def inner(func: Callable[[Context], R]) -> StandaloneTask[TWorkflowInput, R]:
+            return StandaloneTask[TWorkflowInput, R](
                 func,
                 hatchet=self,
                 name=name,
@@ -203,7 +128,6 @@ class Hatchet:
                 rate_limits=rate_limits,
                 desired_worker_labels=desired_worker_labels,
                 concurrency=concurrency,
-                on_failure=on_failure,
                 default_priority=default_priority,
                 input_validator=input_validator,
                 backoff_factor=backoff_factor,
@@ -213,14 +137,18 @@ class Hatchet:
         return inner
 
     def worker(
-        self, name: str, max_runs: int | None = None, labels: dict[str, str | int] = {}
+        self,
+        name: str,
+        max_runs: int | None = None,
+        labels: dict[str, str | int] = {},
+        workflows: Sequence[TBaseWorkflow | StandaloneTask[Any, Any]] = [],
     ) -> Worker:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = None
 
-        return Worker(
+        worker = Worker(
             name=name,
             max_runs=max_runs,
             labels=labels,
@@ -228,6 +156,10 @@ class Hatchet:
             debug=self._client.debug,
             owned_loop=loop is None,
         )
+
+        worker.register_workflows(workflows)
+
+        return worker
 
     @overload
     def declare_workflow(

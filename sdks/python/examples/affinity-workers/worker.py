@@ -7,9 +7,7 @@ wf = hatchet.declare_workflow(on_events=["affinity:run"])
 
 
 class AffinityWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step(
+    @wf.task(
         desired_worker_labels={
             "model": DesiredWorkerLabel(value="fancy-ai-model-v2", weight=10),
             "memory": DesiredWorkerLabel(
@@ -37,7 +35,7 @@ def main() -> None:
             "memory": 512,
         },
     )
-    worker.register_workflow(AffinityWorkflow())
+    worker.register_workflow(AffinityWorkflow(wf))
     worker.start()
 
 

@@ -137,15 +137,19 @@ from hatchet_sdk.contracts.workflows_pb2 import (
     WorkerLabelComparator,
 )
 from hatchet_sdk.hatchet import Hatchet
-from hatchet_sdk.utils.aio_utils import sync_to_async
-from hatchet_sdk.worker.worker import Worker, WorkerStartOptions, WorkerStatus
-from hatchet_sdk.workflow import (
-    BaseWorkflow,
+from hatchet_sdk.runnables.types import (
     ConcurrencyExpression,
     ConcurrencyLimitStrategy,
     StickyStrategy,
     WorkflowConfig,
 )
+from hatchet_sdk.runnables.workflow import (
+    BaseWorkflow,
+    SpawnWorkflowInput,
+    WorkflowDeclaration,
+)
+from hatchet_sdk.utils.aio_utils import sync_to_async
+from hatchet_sdk.worker.worker import Worker, WorkerStartOptions, WorkerStatus
 
 __all__ = [
     "AcceptInviteRequest",
@@ -251,4 +255,6 @@ __all__ = [
     "ConcurrencyExpression",
     "BaseWorkflow",
     "WorkflowConfig",
+    "WorkflowDeclaration",
+    "SpawnWorkflowInput",
 ]

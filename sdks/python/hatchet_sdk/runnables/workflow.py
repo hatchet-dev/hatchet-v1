@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, TypeGuard, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeGuard, Union, cast
 
 from google.protobuf import timestamp_pb2
 
@@ -25,7 +25,9 @@ from hatchet_sdk.contracts.workflows_pb2 import (
     WorkflowKind,
     WorkflowVersion,
 )
+from hatchet_sdk.labels import DesiredWorkerLabel, transform_desired_worker_label
 from hatchet_sdk.logger import logger
+from hatchet_sdk.rate_limit import RateLimit
 from hatchet_sdk.runnables.task import Task
 from hatchet_sdk.runnables.types import (
     AsyncFunc,
@@ -168,17 +170,77 @@ class WorkflowDeclaration(Generic[TWorkflowInput]):
             options=options,
         )
 
+    def task(
+        self,
+        name: str = "",
+        timeout: str = "60m",
+        parents: list[str] = [],
+        retries: int = 0,
+        rate_limits: list[RateLimit] = [],
+        desired_worker_labels: dict[str, DesiredWorkerLabel] = {},
+        backoff_factor: float | None = None,
+        backoff_max_seconds: int | None = None,
+    ) -> Callable[[Callable[[Any, Context], R]], Task[R]]:
+        def inner(func: Callable[[Any, Context], R]) -> Task[R]:
+            return Task(
+                fn=func,
+                type=StepType.DEFAULT,
+                name=name.lower() or str(func.__name__).lower(),
+                timeout=timeout,
+                parents=parents,
+                retries=retries,
+                rate_limits=[r for rate_limit in rate_limits if (r := rate_limit._req)],
+                desired_worker_labels={
+                    key: transform_desired_worker_label(d)
+                    for key, d in desired_worker_labels.items()
+                },
+                backoff_factor=backoff_factor,
+                backoff_max_seconds=backoff_max_seconds,
+            )
+
+        return inner
+
+    def on_failure_task(
+        self,
+        name: str = "",
+        timeout: str = "60m",
+        parents: list[str] = [],
+        retries: int = 0,
+        rate_limits: list[RateLimit] = [],
+        desired_worker_labels: dict[str, DesiredWorkerLabel] = {},
+        backoff_factor: float | None = None,
+        backoff_max_seconds: int | None = None,
+    ) -> Callable[[Callable[[Any, Context], R]], Task[R]]:
+        def inner(func: Callable[[Any, Context], R]) -> Task[R]:
+            return Task(
+                fn=func,
+                type=StepType.ON_FAILURE,
+                name=name.lower() or str(func.__name__).lower(),
+                timeout=timeout,
+                parents=parents,
+                retries=retries,
+                rate_limits=[r for rate_limit in rate_limits if (r := rate_limit._req)],
+                desired_worker_labels={
+                    key: transform_desired_worker_label(d)
+                    for key, d in desired_worker_labels.items()
+                },
+                backoff_factor=backoff_factor,
+                backoff_max_seconds=backoff_max_seconds,
+            )
+
+        return inner
+
 
 class BaseWorkflow:
     """
     A Hatchet workflow implementation base. This class should be inherited by all workflow implementations.
 
-    Configuration is passed to the workflow implementation via the `config` attribute.
+    A declaration is passed to the workflow using the `declaration` parameter. This declaration is used to
+    define the workflow's configuration.
     """
 
-    config: WorkflowConfig = WorkflowConfig()
-
-    def __init__(self) -> None:
+    def __init__(self, declaration: WorkflowDeclaration[TWorkflowInput]) -> None:
+        self.config = declaration.config
         self.config.name = self.config.name or str(self.__class__.__name__)
 
         for step in self.steps:

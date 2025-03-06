@@ -10,9 +10,7 @@ wf = hatchet.declare_workflow(on_events=["dag:create"], schedule_timeout="10m")
 
 
 class DagWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step(timeout="5s")
+    @wf.task(timeout="5s")
     def step1(self, context: Context) -> dict[str, int]:
         rando = random.randint(
             1, 100
@@ -21,7 +19,7 @@ class DagWorkflow(BaseWorkflow):
             "rando": rando,
         }
 
-    @hatchet.step(timeout="5s")
+    @wf.task(timeout="5s")
     def step2(self, context: Context) -> dict[str, int]:
         rando = random.randint(
             1, 100
@@ -30,7 +28,7 @@ class DagWorkflow(BaseWorkflow):
             "rando": rando,
         }
 
-    @hatchet.step(parents=["step1", "step2"])
+    @wf.task(parents=["step1", "step2"])
     def step3(self, context: Context) -> dict[str, int]:
         one = cast(dict[str, Any], context.step_output("step1"))["rando"]
         two = cast(dict[str, Any], context.step_output("step2"))["rando"]
@@ -39,7 +37,7 @@ class DagWorkflow(BaseWorkflow):
             "sum": one + two,
         }
 
-    @hatchet.step(parents=["step1", "step3"])
+    @wf.task(parents=["step1", "step3"])
     def step4(self, context: Context) -> dict[str, str]:
         print(
             "executed step4",
@@ -55,7 +53,7 @@ class DagWorkflow(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("dag-worker")
-    worker.register_workflow(DagWorkflow())
+    worker.register_workflow(DagWorkflow(wf))
 
     worker.start()
 

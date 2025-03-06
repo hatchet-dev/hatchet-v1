@@ -1,19 +1,29 @@
 import time
 
-from hatchet_sdk import BaseWorkflow, Context, Hatchet
+from pydantic import BaseModel
+
+from hatchet_sdk import BaseWorkflow, Context, Hatchet, WorkflowDeclaration
 
 hatchet = Hatchet(debug=True)
 
-wf = hatchet.declare_workflow(on_events=["overrides:create"], schedule_timeout="10m")
+
+class OverridesModel(BaseModel):
+    foo: str
+
+
+wf = hatchet.declare_workflow(
+    on_events=["overrides:create"],
+    schedule_timeout="10m",
+    input_validator=OverridesModel,
+)
 
 
 class OverridesWorkflow(BaseWorkflow):
-    config = wf.config
-
-    def __init__(self) -> None:
+    def __init__(self, declaration: WorkflowDeclaration[OverridesModel]) -> None:
+        super().__init__(declaration)
         self.my_value = "test"
 
-    @hatchet.step(timeout="5s")
+    @wf.task(timeout="5s")
     def step1(self, context: Context) -> dict[str, str | None]:
         print(
             "starting step1",
@@ -28,7 +38,7 @@ class OverridesWorkflow(BaseWorkflow):
             "step1": overrideValue,
         }
 
-    @hatchet.step()
+    @wf.task()
     def step2(self, context: Context) -> dict[str, str]:
         print(
             "starting step2",
@@ -41,7 +51,7 @@ class OverridesWorkflow(BaseWorkflow):
             "step2": "step2",
         }
 
-    @hatchet.step(parents=["step1", "step2"])
+    @wf.task(parents=["step1", "step2"])
     def step3(self, context: Context) -> dict[str, str]:
         print(
             "executed step3",
@@ -54,7 +64,7 @@ class OverridesWorkflow(BaseWorkflow):
             "step3": "step3",
         }
 
-    @hatchet.step(parents=["step1", "step3"])
+    @wf.task(parents=["step1", "step3"])
     def step4(self, context: Context) -> dict[str, str]:
         print(
             "executed step4",
@@ -69,9 +79,7 @@ class OverridesWorkflow(BaseWorkflow):
 
 
 def main() -> None:
-    workflow = OverridesWorkflow()
-    worker = hatchet.worker("overrides-worker")
-    worker.register_workflow(workflow)
+    worker = hatchet.worker("overrides-worker", workflows=[OverridesWorkflow(wf)])
 
     worker.start()
 

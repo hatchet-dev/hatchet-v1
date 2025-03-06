@@ -3,9 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from hatchet_sdk import BaseWorkflow, Context, Hatchet
+from hatchet_sdk import BaseWorkflow, Context, Hatchet, SpawnWorkflowInput
 from hatchet_sdk.clients.admin import ChildTriggerWorkflowOptions
-from hatchet_sdk.workflow import SpawnWorkflowInput
 
 hatchet = Hatchet(debug=True)
 
@@ -27,9 +26,7 @@ bulk_child_wf = hatchet.declare_workflow(
 
 
 class BulkParent(BaseWorkflow):
-    config = bulk_parent_wf.config
-
-    @hatchet.step(timeout="5m")
+    @bulk_parent_wf.task(timeout="5m")
     async def spawn(self, context: Context) -> dict[str, list[Any]]:
         print("spawning child")
 
@@ -71,16 +68,14 @@ class BulkParent(BaseWorkflow):
 
 
 class BulkChild(BaseWorkflow):
-    config = bulk_child_wf.config
-
-    @hatchet.step()
+    @bulk_child_wf.task()
     def process(self, context: Context) -> dict[str, str]:
         a = bulk_child_wf.get_workflow_input(context).a
         print(f"child process {a}")
         context.put_stream("child 1...")
         return {"status": "success " + a}
 
-    @hatchet.step()
+    @bulk_child_wf.task()
     def process2(self, context: Context) -> dict[str, str]:
         print("child process2")
         context.put_stream("child 2...")
@@ -88,9 +83,14 @@ class BulkChild(BaseWorkflow):
 
 
 def main() -> None:
-    worker = hatchet.worker("fanout-worker", max_runs=40)
-    worker.register_workflow(BulkParent())
-    worker.register_workflow(BulkChild())
+    worker = hatchet.worker(
+        "fanout-worker",
+        max_runs=40,
+        workflows=[
+            BulkParent(bulk_parent_wf),
+            BulkChild(bulk_child_wf),
+        ],
+    )
     worker.start()
 
 

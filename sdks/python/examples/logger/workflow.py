@@ -6,9 +6,11 @@ from hatchet_sdk import BaseWorkflow, Context
 
 logger = logging.getLogger(__name__)
 
+wf = hatchet.declare_workflow()
+
 
 class LoggingWorkflow(BaseWorkflow):
-    @hatchet.step()
+    @wf.task()
     def step1(self, context: Context) -> dict[str, str]:
         for i in range(12):
             logger.info("executed step1 - {}".format(i))

@@ -10,9 +10,7 @@ wf = hatchet.declare_workflow(on_events=["man:create"])
 
 
 class ManualTriggerWorkflow(BaseWorkflow):
-    config = wf.config
-
-    @hatchet.step()
+    @wf.task()
     def step1(self, context: Context) -> dict[str, str]:
         res = context.playground("res", "HELLO")
 
@@ -38,7 +36,7 @@ class ManualTriggerWorkflow(BaseWorkflow):
         print("executed step1")
         return {"step1": "data1 " + (res or "")}
 
-    @hatchet.step(parents=["step1"], timeout="4s")
+    @wf.task(parents=["step1"], timeout="4s")
     def step2(self, context: Context) -> dict[str, str]:
         print("started step2")
         time.sleep(1)
@@ -47,8 +45,9 @@ class ManualTriggerWorkflow(BaseWorkflow):
 
 
 def main() -> None:
-    worker = hatchet.worker("manual-worker", max_runs=4)
-    worker.register_workflow(ManualTriggerWorkflow())
+    worker = hatchet.worker(
+        "manual-worker", max_runs=4, workflows=[ManualTriggerWorkflow(wf)]
+    )
 
     worker.start()
 

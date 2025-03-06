@@ -2,11 +2,13 @@ from hatchet_sdk import BaseWorkflow, Context, Hatchet
 
 hatchet = Hatchet(debug=True)
 
+wf = hatchet.declare_workflow()
+
 
 # ❓ Backoff
 class BackoffWorkflow(BaseWorkflow):
     # 👀 Backoff configuration
-    @hatchet.step(
+    @wf.task(
         retries=10,
         # 👀 Maximum number of seconds to wait between retries
         backoff_max_seconds=60,
@@ -26,7 +28,7 @@ class BackoffWorkflow(BaseWorkflow):
 
 def main() -> None:
     worker = hatchet.worker("backoff-worker", max_runs=4)
-    worker.register_workflow(BackoffWorkflow())
+    worker.register_workflow(BackoffWorkflow(wf))
 
     worker.start()
 

@@ -10,9 +10,7 @@ dedupe_parent_wf = hatchet.declare_workflow(on_events=["parent:create"])
 
 
 class DedupeParent(BaseWorkflow):
-    config = dedupe_parent_wf.config
-
-    @hatchet.step(timeout="1m")
+    @dedupe_parent_wf.task(timeout="1m")
     async def spawn(self, context: Context) -> dict[str, list[Any]]:
         print("spawning child")
 
@@ -46,25 +44,25 @@ dedupe_child_wf = hatchet.declare_workflow(on_events=["child:create"])
 
 
 class DedupeChild(BaseWorkflow):
-    config = dedupe_child_wf.config
-
-    @hatchet.step()
+    @dedupe_child_wf.task()
     async def process(self, context: Context) -> dict[str, str]:
         await asyncio.sleep(3)
 
         print("child process")
         return {"status": "success"}
 
-    @hatchet.step()
+    @dedupe_child_wf.task()
     async def process2(self, context: Context) -> dict[str, str]:
         print("child process2")
         return {"status2": "success"}
 
 
 def main() -> None:
-    worker = hatchet.worker("fanout-worker", max_runs=100)
-    worker.register_workflow(DedupeParent())
-    worker.register_workflow(DedupeChild())
+    worker = hatchet.worker(
+        "fanout-worker",
+        max_runs=100,
+        workflows=[DedupeParent(dedupe_parent_wf), DedupeChild(dedupe_child_wf)],
+    )
     worker.start()
 
 
