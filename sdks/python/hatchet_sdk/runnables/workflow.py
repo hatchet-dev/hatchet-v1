@@ -1,7 +1,16 @@
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeGuard, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Generic,
+    TypeGuard,
+    Union,
+    cast,
+)
 
 from google.protobuf import timestamp_pb2
 
@@ -181,7 +190,9 @@ class WorkflowDeclaration(Generic[TWorkflowInput]):
         backoff_factor: float | None = None,
         backoff_max_seconds: int | None = None,
     ) -> Callable[[Callable[[Any, Context], R]], Task[R]]:
-        def inner(func: Callable[[Any, Context], R]) -> Task[R]:
+        def inner(
+            func: Callable[[Any, Context], R] | Callable[[Any, Context], Awaitable[R]]
+        ) -> Task[R]:
             return Task(
                 fn=func,
                 type=StepType.DEFAULT,
